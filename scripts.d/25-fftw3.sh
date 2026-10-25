@@ -4,6 +4,8 @@ SCRIPT_REPO="https://github.com/FFTW/fftw3.git"
 SCRIPT_COMMIT="93ed4c786934aec9946f8dda4b4e3eb08f8be41c"
 
 ffbuild_enabled() {
+    # GPL-2.0-or-later: only GPL variants may link it (rubberband, chromaprint).
+    [[ $VARIANT == lgpl* ]] && return -1
     return 0
 }
 

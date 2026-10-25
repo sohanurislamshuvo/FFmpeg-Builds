@@ -1,0 +1,70 @@
+name: Helion FFmpeg
+
+# Builds the Helion LGPL FFmpeg (win64, lgpl-shared, release/8.1 pinned by addins/helion.sh)
+# in one job, checks that nothing GPL-only is linked, and publishes the zip with its
+# corresponding source as a release of the pushed tag. Releases here are never pruned.
+on:
+  push:
+    tags:
+      - 'helion-*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  DOCKER_BUILDKIT: 1
+  BUILD_ARGS: win64 lgpl-shared 8.1 helion
+
+jobs:
+  build:
+    name: Build win64 lgpl-shared 8.1 helion
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Free disk space
+        run: ./util/free_disk_space.sh
+      - name: Install buildx
+        uses: docker/setup-buildx-action@v4
+        with:
+          buildkitd-config: .github/buildkit.toml
+          driver: docker
+      - name: Download cache key
+        id: dl_cache
+        run: echo "dltagname=$(./util/get_dl_cache_tag.sh)" >> "$GITHUB_OUTPUT"
+      - name: Download cache
+        uses: actions/cache@v6
+        with:
+          path: .cache/downloads
+          key: download-cache-${{ steps.dl_cache.outputs.dltagname }}
+          restore-keys: |
+            download-cache-
+      - name: Build images and FFmpeg
+        run: |
+          T="$(echo -n ${{ github.token }} | sha256sum | head -c 64)" && echo -e "::add-mask::${T}\n::stop-commands::${T}"
+          ./makeimage.sh $BUILD_ARGS
+          ./build.sh $BUILD_ARGS
+          rm -f artifacts/*.txt
+      - name: Check that nothing GPL-only is linked
+        run: bash util/check_lgpl.sh artifacts/*.zip
+      - name: Collect corresponding source
+        run: bash util/collect_sources.sh $BUILD_ARGS
+      - name: Checksums
+        working-directory: artifacts
+        run: sha256sum -- * > checksums.sha256 && cat checksums.sha256
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: helion-ffmpeg
+          path: artifacts/
+          retention-days: 30
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" \
+            --notes "FFmpeg for Helion Studio ($BUILD_ARGS), built from $GITHUB_SHA. Corresponding source: ffmpeg-*-source.tar.xz (FFmpeg) and deps-source-* (every library, with scripts.d and patches); the build scripts are this tag." \
+            artifacts/*

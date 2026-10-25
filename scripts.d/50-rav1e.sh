@@ -5,6 +5,9 @@ SCRIPT_COMMIT="31435de9d76fddd38f6dcc31d4014574cebb2092"
 
 ffbuild_enabled() {
     [[ $TARGET == win32 ]] && return -1
+    # cargo fetches its crates during the build, outside the download cache that
+    # util/collect_sources.sh publishes, and Helion does not encode AV1 with it.
+    [[ $ADDINS_STR == *helion* ]] && return -1
     return 0
 }
 

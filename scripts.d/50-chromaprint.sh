@@ -9,6 +9,9 @@ ffbuild_depends() {
 }
 
 ffbuild_enabled() {
+    # Built with FFT_LIB=fftw3 below, and FFTW is GPL-2.0-or-later, so linking
+    # it would make libavformat GPL. Keep it out of the LGPL variants.
+    [[ $VARIANT == lgpl* ]] && return -1
     (( $(ffbuild_ffver) >= 600 )) || return -1
     return 0
 }

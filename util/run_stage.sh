@@ -57,6 +57,20 @@ if [[ -d "$FFBUILD_DESTDIR" ]]; then
     fi
 fi
 
+# Keep the license and notice files of every stage that has sources, and where
+# they came from, so build.sh can ship them next to the binaries.
+if [[ -n "$STAGENAME" && -d "/$STAGENAME" ]]; then
+    mapfile -d '' LICFILES < <(cd "/$STAGENAME" && find . -maxdepth 3 -type f \
+        \( -iname 'COPYING*' -o -iname 'LICEN[CS]E*' -o -iname 'NOTICE*' -o -iname 'COPYRIGHT*' -o -iname 'PATENTS*' \) \
+        -not -path '*/.git/*' -not -path './*build*/*' -not -ipath '*/test*' -print0)
+    if (( ${#LICFILES[@]} )); then
+        LICDIR="$FFBUILD_DESTPREFIX/share/licenses/$STAGENAME"
+        mkdir -p "$LICDIR"
+        (cd "/$STAGENAME" && cp --parents -t "$LICDIR" "${LICFILES[@]}")
+        echo "${SCRIPT_REPO:-} ${SCRIPT_COMMIT:-}" > "$LICDIR/SOURCE"
+    fi
+fi
+
 # If this is a sub-stage, hardlink-copy the DESTDIR into the PREFIX.
 # So the following layers can actually use the installed stuff.
 if [[ "$SELF" == */??-*/??-*.sh && -d "$FFBUILD_DESTDIR" ]]; then

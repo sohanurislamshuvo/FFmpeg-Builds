@@ -9,6 +9,9 @@ ffbuild_depends() {
 }
 
 ffbuild_enabled() {
+    # src/packet-830.c is GPL-2.0-only (see COPYING.md) and vbi_decode() reaches
+    # it through vbi_decode_teletext(), so every libzvbi user links it.
+    [[ $VARIANT == lgpl* ]] && return -1
     return 0
 }
 

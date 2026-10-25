@@ -39,6 +39,7 @@ cat <<EOF >"$BUILD_SCRIPT"
 
     git clone --filter=blob:none --branch='$GIT_BRANCH' '$FFMPEG_REPO' ffmpeg
     cd ffmpeg
+    if [[ -n '$FFMPEG_COMMIT' ]]; then git checkout --detach '$FFMPEG_COMMIT'; fi
 
     ./configure --prefix=/ffbuild/prefix --pkg-config-flags="--static" \$FFBUILD_TARGET_FLAGS \$FF_CONFIGURE \
         --extra-cflags="\$FF_CFLAGS" --extra-cxxflags="\$FF_CXXFLAGS" --extra-libs="\$FF_LIBS" \
@@ -47,7 +48,32 @@ cat <<EOF >"$BUILD_SCRIPT"
         --extra-version="\$(date +%Y%m%d)" || { cat ffbuild/config.log; exit 1; }
     make -j\$(nproc) V=1
     make install install-doc
+    if [[ -d "\$FFBUILD_PREFIX"/share/licenses ]]; then cp -r "\$FFBUILD_PREFIX"/share/licenses /ffbuild/prefix/share/; fi
 EOF
+
+# Copies FFmpeg's license files and every stage's license files that util/run_stage.sh kept
+# into <package>/licenses, and concatenates the stages' files into THIRD-PARTY-LICENSES.txt.
+package_licenses() {
+    local OUT="$1/licenses"
+    mkdir -p "$OUT/ffmpeg"
+    cp ffbuild/ffmpeg/{LICENSE.md,COPYING.LGPLv2.1,COPYING.LGPLv3,COPYING.GPLv3} "$OUT/ffmpeg/"
+    [[ -d ffbuild/prefix/share/licenses ]] || return 0
+    cp -r ffbuild/prefix/share/licenses/. "$OUT/"
+    {
+        echo "License and notice files of the libraries built into these FFmpeg binaries."
+        echo "One section per build stage: <stage>: <source repository> <commit>."
+        for DIR in "$OUT"/*/; do
+            [[ -f "$DIR/SOURCE" ]] || continue
+            echo
+            echo "======== $(basename "$DIR"): $(cat "$DIR/SOURCE")"
+            find "$DIR" -type f ! -name SOURCE -print0 | sort -z | while IFS= read -r -d '' FILE; do
+                echo "-------- ${FILE#"$DIR"}"
+                cat "$FILE"
+                echo
+            done
+        done
+    } > "$OUT/THIRD-PARTY-LICENSES.txt"
+}
 
 [[ -t 1 ]] && TTY_ARG="-t" || TTY_ARG=""
 
@@ -57,6 +83,7 @@ if [[ -n "$FFBUILD_OUTPUT_DIR" ]]; then
     mkdir -p "$FFBUILD_OUTPUT_DIR"
     package_variant ffbuild/prefix "$FFBUILD_OUTPUT_DIR"
     [[ -n "$LICENSE_FILE" ]] && cp "ffbuild/ffmpeg/$LICENSE_FILE" "$FFBUILD_OUTPUT_DIR/LICENSE.txt"
+    package_licenses "$FFBUILD_OUTPUT_DIR"
     rm -rf ffbuild
     exit 0
 fi
@@ -69,6 +96,7 @@ mkdir -p "ffbuild/pkgroot/$BUILD_NAME"
 package_variant ffbuild/prefix "ffbuild/pkgroot/$BUILD_NAME"
 
 [[ -n "$LICENSE_FILE" ]] && cp "ffbuild/ffmpeg/$LICENSE_FILE" "ffbuild/pkgroot/$BUILD_NAME/LICENSE.txt"
+package_licenses "ffbuild/pkgroot/$BUILD_NAME"
 
 cd ffbuild/pkgroot
 if [[ "${TARGET}" == win* ]]; then
