@@ -68,6 +68,9 @@ if [[ -n "$STAGENAME" && -d "/$STAGENAME" ]]; then
         mkdir -p "$LICDIR"
         (cd "/$STAGENAME" && cp --parents -t "$LICDIR" "${LICFILES[@]}")
         echo "${SCRIPT_REPO:-} ${SCRIPT_COMMIT:-}" > "$LICDIR/SOURCE"
+        # The image is built as root, but build.sh runs as the invoking user, which must be able
+        # to read these. Some sources ship owner-only files (cargo-vendored crates in librsvg).
+        chmod -R a+rX "$LICDIR"
     fi
 fi
 
