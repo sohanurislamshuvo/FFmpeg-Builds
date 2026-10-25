@@ -35,7 +35,8 @@ jobs:
         id: dl_cache
         run: echo "dltagname=$(./util/get_dl_cache_tag.sh)" >> "$GITHUB_OUTPUT"
       - name: Download cache
-        uses: actions/cache@v6
+        id: dlcache
+        uses: actions/cache/restore@v6
         with:
           path: .cache/downloads
           key: download-cache-${{ steps.dl_cache.outputs.dltagname }}
@@ -47,6 +48,21 @@ jobs:
           ./makeimage.sh $BUILD_ARGS
           ./build.sh $BUILD_ARGS
           rm -f artifacts/*.txt
+      # Saved even when the build fails, so a re-run doesn't download every source again.
+      - name: Save download cache
+        if: always() && steps.dlcache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: .cache/downloads
+          key: download-cache-${{ steps.dl_cache.outputs.dltagname }}
+      # Uploaded before the checks, so a failing check or source step never loses a two-hour build.
+      - name: Upload the build
+        uses: actions/upload-artifact@v7
+        with:
+          name: helion-ffmpeg-build
+          path: artifacts/*.zip
+          retention-days: 14
       - name: Check that nothing GPL-only is linked
         run: bash util/check_lgpl.sh artifacts/*.zip
       - name: Collect corresponding source
