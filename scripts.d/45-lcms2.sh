@@ -15,9 +15,15 @@ ffbuild_dockerbuild() {
         --prefix="$FFBUILD_PREFIX"
         -Ddefault_library=static
         -Dutils=false
-        -Dfastfloat=true
-        -Dthreaded=true
     )
+
+    # The fast_float and threaded plugins are GPL-3.0, and lcms2.pc puts them on FFmpeg's link line:
+    # an LGPL build must not have them at all.
+    if [[ $VARIANT == lgpl* ]]; then
+        myconf+=( -Dfastfloat=false -Dthreaded=false )
+    else
+        myconf+=( -Dfastfloat=true -Dthreaded=true )
+    fi
 
     if [[ $TARGET == win* || $TARGET == linux* ]]; then
         myconf+=(

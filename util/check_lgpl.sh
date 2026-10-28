@@ -13,11 +13,16 @@ FORBIDDEN_FLAGS=(
 )
 # Strings only GPL libraries put in a binary: FFTW's version and planner names, the x264 and
 # x265 banners, Rubber Band and vid.stab. None occurs in a clean LGPL build (FFmpeg's own
-# decoders do contain "x264 - core" and "XviD", so those are not usable markers).
+# decoders do contain "x264 - core" and "XviD", so those are not usable markers). The last one
+# is Little CMS's GPL-3.0 threaded plugin (threaded_split.c, compiled on every platform).
 FORBIDDEN_STRINGS=(
     'fftw-3.' '(dft-ct-' 'H.264/MPEG-4 AVC codec - Copy' 'HEVC encoder version'
-    'RubberBandStretcher' 'vid.stab'
+    'RubberBandStretcher' 'vid.stab' 'too many threads for actual processor'
 )
+# Little CMS's GPL-3.0 plugins have no string of their own to look for (fast_float), so look for
+# their headers: cmsPluginMagicNumber ('acpp', little-endian) followed, 8 bytes on, by a plugin
+# type: transform ('zfmH'), formatters ('frmH') or parallelization ('prlH').
+LCMS2_PLUGIN='\x70\x70\x63\x61.{4}(?:\x48\x6d\x66\x7a|\x48\x6d\x72\x66|\x48\x6c\x72\x70)'
 
 status=0
 for ZIP in "$@"; do
@@ -39,6 +44,10 @@ for ZIP in "$@"; do
                 status=1
             fi
         done
+        if perl -0777 -ne "exit(/$LCMS2_PLUGIN/s ? 0 : 1)" "$FILE"; then
+            echo "$ZIP: ${FILE##*/} contains a Little CMS plugin header"
+            status=1
+        fi
     done
     rm -rf "$TMP"
 done

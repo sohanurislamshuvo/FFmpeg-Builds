@@ -3,11 +3,30 @@
 SCRIPT_REPO="https://github.com/Netflix/vmaf.git"
 SCRIPT_COMMIT="86da14d0306a138fd3f01319860b905169746516"
 
+# Notices only in the headers of files it compiles, and mkdirp's MIT text, which mkdirp.c's header
+# only refers to: the fork carries it (licenses-extra/vmaf) and the build copies it in.
+LICENSE_EXTRA=(
+    libvmaf/src/svm.h
+    libvmaf/src/feature/iqa/convolve.c
+    libvmaf/src/feature/ciede.c
+    libvmaf/src/feature/mkdirp.c
+    libvmaf/src/feature/third_party/xiph/psnr_hvs.c
+    mkdirp.c-LICENSE.txt
+)
+
 ffbuild_enabled() {
     return 0
 }
 
+ffbuild_dockerstage() {
+    local mounts="--mount=src=${SELF},dst=/stage.sh --mount=src=licenses-extra/vmaf,dst=/licenses-extra"
+    [[ -n "$SELFCACHE" ]] && mounts+=" --mount=src=${SELFCACHE},dst=/cache.tar.xz"
+    to_df "RUN $mounts run_stage /stage.sh"
+}
+
 ffbuild_dockerbuild() {
+    cp /licenses-extra/mkdirp.c-LICENSE.txt .
+
     # Kill build of unused and broken tools
     echo > libvmaf/tools/meson.build
 

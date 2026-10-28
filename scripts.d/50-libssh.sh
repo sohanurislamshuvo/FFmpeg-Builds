@@ -3,6 +3,9 @@
 SCRIPT_REPO="https://gitlab.com/libssh/libssh-mirror.git"
 SCRIPT_COMMIT="76e0a8639e61436c28d877586f65a7707edc6ee5"
 
+# Notices only in the headers of files it compiles (util/run_stage.sh copies them).
+LICENSE_EXTRA=( src/external/blowfish.c src/external/bcrypt_pbkdf.c src/match.c )
+
 ffbuild_depends() {
     echo base
     echo zlib

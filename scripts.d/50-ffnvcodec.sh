@@ -24,13 +24,16 @@ ffbuild_dockerdl() {
 }
 
 ffbuild_dockerbuild() {
+    local dir=ffnvcodec
     if (( $FFVER < 800 )); then
-        cd ffnvcodec3
+        dir=ffnvcodec3
     elif (( $FFVER <= 801 )); then
-        cd ffnvcodec2
-    else
-        cd ffnvcodec
+        dir=ffnvcodec2
     fi
+    # Notices only in the headers it installs, from the checkout this FFmpeg uses (util/run_stage.sh
+    # copies them).
+    LICENSE_EXTRA=( "$dir/include/ffnvcodec/nvEncodeAPI.h" "$dir/include/ffnvcodec/dynlink_loader.h" )
+    cd "$dir"
 
     make PREFIX="$FFBUILD_PREFIX" DESTDIR="$FFBUILD_DESTDIR" install
 }

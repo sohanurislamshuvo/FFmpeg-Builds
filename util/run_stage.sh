@@ -63,6 +63,13 @@ if [[ -n "$STAGENAME" && -d "/$STAGENAME" ]]; then
     mapfile -d '' LICFILES < <(cd "/$STAGENAME" && find . -maxdepth 3 -type f \
         \( -iname 'COPYING*' -o -iname 'LICEN[CS]E*' -o -iname 'NOTICE*' -o -iname 'COPYRIGHT*' -o -iname 'PATENTS*' \) \
         -not -path '*/.git/*' -not -path './*build*/*' -not -ipath '*/test*' -print0)
+    # Notices that live only in the headers of compiled files (or texts the fork carries): the
+    # stage script lists them in LICENSE_EXTRA, as paths in its source tree. A missing one fails
+    # the stage, so a version bump that moves a file can't drop its notice silently.
+    for EXTRA in "${LICENSE_EXTRA[@]}"; do
+        [[ -f "/$STAGENAME/$EXTRA" ]] || { echo "LICENSE_EXTRA: $EXTRA is missing" >&2; exit 1; }
+        LICFILES+=( "./$EXTRA" )
+    done
     if (( ${#LICFILES[@]} )); then
         LICDIR="$FFBUILD_DESTPREFIX/share/licenses/$STAGENAME"
         mkdir -p "$LICDIR"

@@ -3,6 +3,9 @@
 SCRIPT_REPO="https://code.videolan.org/rist/librist.git"
 SCRIPT_COMMIT="4f45ef8f78983892d52ccd52d9f675435b23738f"
 
+# Notices only in the headers of files it compiles (util/run_stage.sh copies them).
+LICENSE_EXTRA=( contrib/lz4/lz4.c contrib/contrib_cJSON/cjson/cJSON.c )
+
 ffbuild_enabled() {
     (( $(ffbuild_ffver) >= 404 )) || return -1
     return 0

@@ -56,6 +56,17 @@ ffbuild_dockerbuild() {
     meson setup "${myconf[@]}" ..
     ninja -j$(nproc)
     DESTDIR="$FFBUILD_DESTDIR" ninja install
+
+    # Rust's standard library is linked in: keep the toolchain's own license files with the
+    # stage's (util/run_stage.sh collects them by name).
+    local rustdoc files
+    rustdoc="$(rustc --print sysroot)/share/doc/rust"
+    shopt -s nullglob
+    files=( "$rustdoc"/COPYRIGHT* "$rustdoc"/LICENSE* )
+    shopt -u nullglob
+    (( ${#files[@]} )) || { echo "No Rust license files in $rustdoc" >&2; return 1; }
+    mkdir -p "/$STAGENAME/rust-toolchain"
+    cp -t "/$STAGENAME/rust-toolchain" "${files[@]}"
 }
 
 ffbuild_configure() {
